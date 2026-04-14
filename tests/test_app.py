@@ -54,7 +54,7 @@ class AppTests(unittest.TestCase):
             )
             app.withdraw()
             app.face_detector = mock.Mock()
-            app.face_detector.detectMultiScale.return_value = []
+            app.face_detector.detect_faces.return_value = []
 
             app.process_frame()
 

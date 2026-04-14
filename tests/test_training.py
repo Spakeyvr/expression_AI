@@ -3,9 +3,10 @@ from __future__ import annotations
 import unittest
 
 import torch
+from PIL import Image
 from torch.utils.data import DataLoader, TensorDataset
 
-from train.train import evaluate, train_one_epoch
+from train.train import _train_transform, evaluate, train_one_epoch
 
 
 class TinyClassifier(torch.nn.Module):
@@ -21,6 +22,12 @@ class TinyClassifier(torch.nn.Module):
 
 
 class TrainingTests(unittest.TestCase):
+    def test_train_transform_returns_model_tensor(self) -> None:
+        tensor = _train_transform(Image.new("L", (48, 48), color=128))
+
+        self.assertEqual(tensor.shape, (3, 224, 224))
+        self.assertEqual(tensor.dtype, torch.float32)
+
     def test_train_and_evaluate_smoke(self) -> None:
         dataset = TensorDataset(
             torch.randn(4, 3, 224, 224),

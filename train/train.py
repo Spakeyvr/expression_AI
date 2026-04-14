@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 import torch
+import torchvision.transforms as T
 from torch import nn
 from torch.utils.data import DataLoader, Dataset, Subset
 
@@ -12,9 +13,30 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from common import DEFAULT_IMAGE_SIZE, EMOTION_LABELS, DeviceResolutionError, resolve_device
+from common import (
+    DEFAULT_IMAGE_SIZE,
+    EMOTION_LABELS,
+    DeviceResolutionError,
+    pil_to_model_tensor,
+    resolve_device,
+)
 from data.dataset import build_dataset
 from model.model import build_model, ensure_torchvision_available
+
+TRAIN_AUGMENTATION = T.Compose(
+    [
+        T.RandomHorizontalFlip(),
+        T.RandomRotation(
+            degrees=20,
+            interpolation=T.InterpolationMode.BILINEAR,
+            fill=0,
+        ),
+    ]
+)
+
+
+def _train_transform(image):
+    return pil_to_model_tensor(TRAIN_AUGMENTATION(image))
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -178,7 +200,10 @@ def main() -> int:
         print(error, file=sys.stderr)
         return 2
 
-    train_dataset = maybe_subset(build_dataset(args.data, split="train"), args.subset)
+    train_dataset = maybe_subset(
+        build_dataset(args.data, split="train", transform=_train_transform),
+        args.subset,
+    )
     val_dataset = maybe_subset(build_dataset(args.data, split="val"), args.subset)
 
     train_loader = DataLoader(

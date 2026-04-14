@@ -92,4 +92,5 @@ expression_AI/
 
 - `--device auto` prefers Apple GPU acceleration through MPS when it is available at runtime and otherwise falls back to CPU.
 - `--smoke-run` performs a tiny 1-epoch training pass for local verification.
-- The webcam app uses OpenCV Haar cascades to find the most prominent face before running emotion inference.
+- The webcam app uses a multi-angle OpenCV cascade pass (frontal, mirrored profile, and slight tilt recovery) before running emotion inference.
+- Training now applies horizontal-flip and rotation augmentation so the classifier is less brittle on off-axis face crops.
