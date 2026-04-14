@@ -1,6 +1,6 @@
 # Expression AI
 
-Expression AI is a local-first Python MVP for facial emotion recognition using either the FER2013 CSV dataset or split image folders, a ResNet18 classifier, single-image inference, and a Tkinter webcam demo.
+Expression AI is a local-first Python MVP for facial emotion recognition using either the FER2013 CSV dataset or split image folders, an EfficientNet-B0 classifier, single-image inference, and a Tkinter webcam demo.
 
 ## Project Layout
 
@@ -92,5 +92,6 @@ expression_AI/
 
 - `--device auto` prefers Apple GPU acceleration through MPS when it is available at runtime and otherwise falls back to CPU.
 - `--smoke-run` performs a tiny 1-epoch training pass for local verification.
+- The model uses torchvision's current EfficientNet-B0 weights API, so the `--pretrained` path follows the same ImageNet weights behavior as the library docs.
 - The webcam app uses a multi-angle OpenCV cascade pass (frontal, mirrored profile, and slight tilt recovery) before running emotion inference.
 - Training now applies horizontal-flip and rotation augmentation so the classifier is less brittle on off-axis face crops.

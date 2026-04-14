@@ -80,14 +80,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--weights-path",
         default=None,
-        help="Optional local path to a pretrained ResNet18 weights file (.pth). Uses this file instead of downloading weights.",
+        help="Optional local path to an EfficientNet-B0 state dict (.pth). Uses this file instead of downloading weights.",
     )
     pretrained_group = parser.add_mutually_exclusive_group()
     pretrained_group.add_argument(
         "--pretrained",
         dest="pretrained",
         action="store_true",
-        help="Initialize EfficientNet-B0 with pretrained ImageNet weights. This may download weights if they are not already cached locally.",
+        help="Initialize EfficientNet-B0 with pretrained ImageNet weights via torchvision's current weights API. This may download weights if they are not already cached locally.",
     )
     pretrained_group.add_argument(
         "--no-pretrained",
@@ -179,6 +179,7 @@ def save_checkpoint(
             "epoch": epoch,
             "val_accuracy": val_accuracy,
             "input_size": DEFAULT_IMAGE_SIZE,
+            "backbone": "efficientnet_b0",
             "pretrained_backbone": args.pretrained,
         },
         checkpoint_path,
