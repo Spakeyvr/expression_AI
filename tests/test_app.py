@@ -8,6 +8,7 @@ from unittest import mock
 import numpy as np
 
 from display.app import ExpressionAIApp
+from display.app import FRAME_SIZE
 
 
 class FakeCapture:
@@ -25,6 +26,19 @@ class FakeCapture:
 
     def release(self) -> None:
         pass
+
+
+class DisplayImageTests(unittest.TestCase):
+    def test_build_display_image_preserves_aspect_ratio(self) -> None:
+        frame = np.zeros((720, 1280, 3), dtype=np.uint8)
+        frame[:, :] = (12, 34, 56)
+
+        image = ExpressionAIApp._build_display_image(frame)
+
+        self.assertEqual(image.size, FRAME_SIZE)
+        rendered = np.array(image)
+        self.assertTrue(np.all(rendered[0, 0] == (17, 19, 24)))
+        self.assertTrue(np.all(rendered[60, FRAME_SIZE[0] // 2] == (12, 34, 56)))
 
 
 @unittest.skipUnless(

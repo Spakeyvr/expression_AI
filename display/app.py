@@ -308,9 +308,24 @@ class ExpressionAIApp(tk.Tk):
         self.latest_asset_image = asset
         self.asset_label.config(image=self.latest_asset_image)
 
+    @staticmethod
+    def _build_display_image(frame_rgb: np.ndarray) -> Image.Image:
+        source_height, source_width = frame_rgb.shape[:2]
+        target_width, target_height = FRAME_SIZE
+        scale = min(target_width / source_width, target_height / source_height)
+        scaled_width = max(1, int(round(source_width * scale)))
+        scaled_height = max(1, int(round(source_height * scale)))
+
+        resized = Image.fromarray(frame_rgb).resize((scaled_width, scaled_height), Image.Resampling.LANCZOS)
+        canvas = Image.new("RGB", FRAME_SIZE, color=(17, 19, 24))
+        offset_x = (target_width - scaled_width) // 2
+        offset_y = (target_height - scaled_height) // 2
+        canvas.paste(resized, (offset_x, offset_y))
+        return canvas
+
     def _render_frame(self, frame_bgr) -> None:
         frame_rgb = cv2.cvtColor(frame_bgr, cv2.COLOR_BGR2RGB)
-        display_image = Image.fromarray(frame_rgb).resize(FRAME_SIZE)
+        display_image = self._build_display_image(frame_rgb)
         self.latest_video_image = ImageTk.PhotoImage(display_image)
         self.video_label.config(image=self.latest_video_image)
 
