@@ -87,13 +87,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--pretrained",
         dest="pretrained",
         action="store_true",
-        help="Initialize ResNet18 with pretrained ImageNet weights. This may download weights if they are not already cached locally.",
+        help="Initialize EfficientNet-B0 with pretrained ImageNet weights. This may download weights if they are not already cached locally.",
     )
     pretrained_group.add_argument(
         "--no-pretrained",
         dest="pretrained",
         action="store_false",
-        help="Train from random initialization without downloading pretrained weights.",
+        help="Train EfficientNet-B0 from random initialization without downloading pretrained weights.",
     )
     parser.set_defaults(pretrained=True)
     return parser

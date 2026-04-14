@@ -10,20 +10,20 @@ import torch.nn as nn
 from common import EMOTION_LABELS
 
 try:
-    from torchvision.models import ResNet18_Weights, resnet18
+    from torchvision.models import EfficientNet_B0_Weights, efficientnet_b0
 except ModuleNotFoundError:  # pragma: no cover - depends on environment
-    ResNet18_Weights = None
-    resnet18 = None
+    EfficientNet_B0_Weights = None
+    efficientnet_b0 = None
 except ImportError:  # pragma: no cover - older torchvision without weights enum
-    from torchvision.models import resnet18
+    from torchvision.models import efficientnet_b0
 
-    ResNet18_Weights = None
+    EfficientNet_B0_Weights = None
 
 
 def ensure_torchvision_available() -> None:
-    if resnet18 is None:
+    if efficientnet_b0 is None:
         raise ModuleNotFoundError(
-            "torchvision is required for the ResNet18 model. "
+            "torchvision is required for the EfficientNet-B0 model. "
             "Install the dependencies from requirements.txt before training or inference."
         )
 
@@ -73,17 +73,17 @@ def build_model(
     if checkpoint_path is not None:
         if not checkpoint_path.is_file():
             raise FileNotFoundError(f"Pretrained weights file was not found at {checkpoint_path}.")
-        if ResNet18_Weights is not None:
-            model = resnet18(weights=None)
+        if EfficientNet_B0_Weights is not None:
+            model = efficientnet_b0(weights=None)
         else:  # pragma: no cover - compatibility fallback
-            model = resnet18(pretrained=False)
+            model = efficientnet_b0(pretrained=False)
         state_dict = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
         model.load_state_dict(state_dict)
-    elif ResNet18_Weights is not None:
-        weights = ResNet18_Weights.DEFAULT if pretrained else None
-        model = resnet18(weights=weights)
+    elif EfficientNet_B0_Weights is not None:
+        weights = EfficientNet_B0_Weights.DEFAULT if pretrained else None
+        model = efficientnet_b0(weights=weights)
     else:  # pragma: no cover - compatibility fallback
-        model = resnet18(pretrained=pretrained)
+        model = efficientnet_b0(pretrained=pretrained)
 
-    model.fc = nn.Linear(model.fc.in_features, num_classes)
+    model.classifier[1] = nn.Linear(model.classifier[1].in_features, num_classes)
     return model
