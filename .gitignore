@@ -37,3 +37,6 @@ pip-wheel-metadata/
 checkpoints/
 artifacts/
 runs/
+
+# data
+data/

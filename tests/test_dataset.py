@@ -5,9 +5,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from PIL import Image
 from torch.utils.data import DataLoader
 
-from data.dataset import FER2013Dataset
+from data.dataset import EmotionImageFolderDataset, FER2013Dataset, build_dataset
 
 
 def make_pixels(value: int) -> str:
@@ -46,3 +47,33 @@ class FER2013DatasetTests(unittest.TestCase):
 
         self.assertEqual(len(val_dataset), 1)
         self.assertEqual(len(test_dataset), 1)
+
+
+class EmotionImageFolderDatasetTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp_dir.name) / "archive"
+
+        for split in ("train", "test"):
+            for class_name, color in (("happy", 255), ("sad", 64)):
+                image_dir = self.root / split / class_name
+                image_dir.mkdir(parents=True, exist_ok=True)
+                image_path = image_dir / f"{class_name}.png"
+                Image.new("L", (48, 48), color=color).save(image_path)
+
+    def tearDown(self) -> None:
+        self.temp_dir.cleanup()
+
+    def test_folder_dataset_smoke_batch_shape(self) -> None:
+        dataset = EmotionImageFolderDataset(self.root, split="train")
+        loader = DataLoader(dataset, batch_size=2)
+        images, labels = next(iter(loader))
+
+        self.assertEqual(images.shape, (2, 3, 224, 224))
+        self.assertCountEqual(labels.tolist(), [3, 4])
+
+    def test_build_dataset_uses_folder_loader(self) -> None:
+        dataset = build_dataset(self.root, split="val")
+
+        self.assertIsInstance(dataset, EmotionImageFolderDataset)
+        self.assertEqual(len(dataset), 2)

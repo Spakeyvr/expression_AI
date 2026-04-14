@@ -46,6 +46,7 @@ class ExpressionAIApp(tk.Tk):
         self.latest_video_image: ImageTk.PhotoImage | None = None
         self.latest_asset_image: ImageTk.PhotoImage | None = None
         self.loaded_checkpoint: LoadedCheckpoint | None = None
+        self.model_load_error: str | None = None
         self.capture: cv2.VideoCapture | None = None
         self.running = True
 
@@ -113,16 +114,16 @@ class ExpressionAIApp(tk.Tk):
 
     def _load_model(self) -> None:
         if not self.checkpoint_path.exists():
-            self._set_status(
-                f"Checkpoint missing: {self.checkpoint_path}. Train the model before opening the webcam app."
-            )
+            self.model_load_error = f"Checkpoint missing: {self.checkpoint_path}"
+            self._set_status(f"{self.model_load_error}. Train the model before opening the webcam app.")
             return
 
         try:
             self.loaded_checkpoint = load_checkpoint(self.checkpoint_path, device=self.device_name)
             self._set_status(f"Model ready on {self.loaded_checkpoint.device}.")
-        except (DeviceResolutionError, FileNotFoundError, ModuleNotFoundError, RuntimeError) as error:
-            self._set_status(f"Model failed to load: {error}")
+        except Exception as error:
+            self.model_load_error = f"{type(error).__name__}: {error}"
+            self._set_status(f"Model failed to load: {self.model_load_error}")
 
     def _open_camera(self) -> None:
         capture = self.capture_factory(self.camera_index)
@@ -134,12 +135,9 @@ class ExpressionAIApp(tk.Tk):
             return
 
         self.capture = capture
-        if self.loaded_checkpoint is None:
-            self._set_status(
-                "Webcam connected, but the model is unavailable. Train the model or fix the checkpoint path."
-            )
-        else:
+        if self.loaded_checkpoint is not None:
             self._set_status("Webcam connected. Looking for a face…")
+        # If loaded_checkpoint is None, keep the specific error from _load_model visible.
 
     def _set_status(self, message: str) -> None:
         self.status_label.config(text=f"Status: {message}")
@@ -179,7 +177,7 @@ class ExpressionAIApp(tk.Tk):
             return
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = self.face_detector.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+        faces = self.face_detector.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4, minSize=(48, 48))
         largest_face = self._select_largest_face(list(faces))
 
         if largest_face is None:
@@ -191,11 +189,17 @@ class ExpressionAIApp(tk.Tk):
             x, y, width, height = largest_face
             cv2.rectangle(frame, (x, y), (x + width, y + height), (80, 220, 120), 2)
 
-            if self.loaded_checkpoint is not None and self.frame_counter % self.inference_stride == 0:
+            if self.loaded_checkpoint is None:
+                self._set_status(
+                    f"Face detected — model unavailable: {self.model_load_error}"
+                    if self.model_load_error
+                    else "Face detected — model unavailable."
+                )
+            elif self.frame_counter % self.inference_stride == 0:
                 try:
                     face_region = frame[y : y + height, x : x + width]
-                    face_rgb = cv2.cvtColor(face_region, cv2.COLOR_BGR2RGB)
-                    result = predict_pil_image(Image.fromarray(face_rgb), self.loaded_checkpoint)
+                    face_gray = cv2.cvtColor(face_region, cv2.COLOR_BGR2GRAY)
+                    result = predict_pil_image(Image.fromarray(face_gray, mode="L"), self.loaded_checkpoint)
                     self.prediction_label.config(text=f"Prediction: {result['label']}")
                     self.confidence_label.config(
                         text=f"Confidence: {result['confidence']:.2%}"

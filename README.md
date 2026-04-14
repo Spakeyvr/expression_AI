@@ -1,6 +1,6 @@
 # Expression AI
 
-Expression AI is a local-first Python MVP for facial emotion recognition using the FER2013 dataset, a ResNet18 classifier, single-image inference, and a Tkinter webcam demo.
+Expression AI is a local-first Python MVP for facial emotion recognition using either the FER2013 CSV dataset or split image folders, a ResNet18 classifier, single-image inference, and a Tkinter webcam demo.
 
 ## Project Layout
 
@@ -32,12 +32,48 @@ expression_AI/
    pip install -r requirements.txt
    ```
 
-2. Download the FER2013 CSV from Kaggle and place it at `data/fer2013.csv`.
+2. Add a dataset in one of these formats:
+
+   `FER2013` CSV:
+
+   ```text
+   data/fer2013.csv
+   ```
+
+   Split image folders:
+
+   ```text
+   data/archive/
+   ├── train/
+   │   ├── angry/
+   │   ├── disgust/
+   │   ├── fear/
+   │   ├── happy/
+   │   ├── neutral/
+   │   ├── sad/
+   │   └── surprise/
+   └── test/
+       ├── angry/
+       ├── disgust/
+       ├── fear/
+       ├── happy/
+       ├── neutral/
+       ├── sad/
+       └── surprise/
+   ```
+
+   `val/` is also supported. If you only have `train/` and `test/`, the trainer uses `test/` as the validation split.
 
 3. Train the model:
 
    ```bash
    python train/train.py --data data/fer2013.csv --epochs 5
+   ```
+
+   or
+
+   ```bash
+   python train/train.py --data data/archive --epochs 5
    ```
 
 4. Run inference on a single image:

@@ -6,20 +6,24 @@ from pathlib import Path
 
 import torch
 from torch import nn
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from common import DEFAULT_IMAGE_SIZE, EMOTION_LABELS, DeviceResolutionError, resolve_device
-from data.dataset import FER2013Dataset
+from data.dataset import build_dataset
 from model.model import build_model, ensure_torchvision_available
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Train the Expression AI FER2013 classifier.")
-    parser.add_argument("--data", required=True, help="Path to the FER2013 CSV file.")
+    parser = argparse.ArgumentParser(description="Train the Expression AI emotion classifier.")
+    parser.add_argument(
+        "--data",
+        required=True,
+        help="Path to a FER2013 CSV file or a dataset directory with split/class/image folders.",
+    )
     parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs.")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for training.")
     parser.add_argument("--learning-rate", type=float, default=1e-4, help="AdamW learning rate.")
@@ -51,24 +55,31 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=0,
         help="DataLoader worker count. Default 0 is safer on macOS desktops.",
     )
+    parser.add_argument(
+        "--weights-path",
+        default=None,
+        help="Optional local path to a pretrained ResNet18 weights file (.pth). Uses this file instead of downloading weights.",
+    )
     pretrained_group = parser.add_mutually_exclusive_group()
     pretrained_group.add_argument(
         "--pretrained",
         dest="pretrained",
         action="store_true",
-        help="Initialize ResNet18 with pretrained ImageNet weights.",
+        help="Initialize ResNet18 with pretrained ImageNet weights. This may download weights if they are not already cached locally.",
     )
     pretrained_group.add_argument(
         "--no-pretrained",
         dest="pretrained",
         action="store_false",
-        help="Train from random initialization.",
+        help="Train from random initialization without downloading pretrained weights.",
     )
     parser.set_defaults(pretrained=True)
     return parser
 
 
-def maybe_subset(dataset: FER2013Dataset, subset: int | None) -> FER2013Dataset | Subset:
+def maybe_subset(
+    dataset: Dataset[tuple[torch.Tensor, int]], subset: int | None
+) -> Dataset[tuple[torch.Tensor, int]] | Subset:
     if subset is None or subset >= len(dataset):
         return dataset
     return Subset(dataset, range(subset))
@@ -167,8 +178,8 @@ def main() -> int:
         print(error, file=sys.stderr)
         return 2
 
-    train_dataset = maybe_subset(FER2013Dataset(args.data, split="train"), args.subset)
-    val_dataset = maybe_subset(FER2013Dataset(args.data, split="val"), args.subset)
+    train_dataset = maybe_subset(build_dataset(args.data, split="train"), args.subset)
+    val_dataset = maybe_subset(build_dataset(args.data, split="val"), args.subset)
 
     train_loader = DataLoader(
         train_dataset,
@@ -183,7 +194,11 @@ def main() -> int:
         num_workers=args.num_workers,
     )
 
-    model = build_model(num_classes=len(EMOTION_LABELS), pretrained=args.pretrained)
+    model = build_model(
+        num_classes=len(EMOTION_LABELS),
+        pretrained=args.pretrained,
+        weights_path=args.weights_path,
+    )
     model.to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
 
@@ -211,4 +226,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except KeyboardInterrupt:
+        print("\nTraining interrupted.")
+        raise SystemExit(0)
