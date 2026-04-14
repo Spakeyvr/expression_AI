@@ -8,7 +8,7 @@ from pathlib import Path
 from PIL import Image
 from torch.utils.data import DataLoader
 
-from data.dataset import EmotionImageFolderDataset, FER2013Dataset, build_dataset
+from data.dataset import EmotionImageFolderDataset, FER2013Dataset, build_dataset, find_image_folder_roots
 
 
 def make_pixels(value: int) -> str:
@@ -73,7 +73,48 @@ class EmotionImageFolderDatasetTests(unittest.TestCase):
         self.assertCountEqual(labels.tolist(), [3, 4])
 
     def test_build_dataset_uses_folder_loader(self) -> None:
-        dataset = build_dataset(self.root, split="val")
+        with self.assertRaises(FileNotFoundError):
+            build_dataset(self.root, split="val")
 
-        self.assertIsInstance(dataset, EmotionImageFolderDataset)
+    def test_parent_directory_combines_multiple_archives_for_same_split(self) -> None:
+        second_root = Path(self.temp_dir.name) / "archive_2"
+        for split in ("train", "val"):
+            for class_name, color in (("happy", 180), ("sad", 32)):
+                image_dir = second_root / split / class_name
+                image_dir.mkdir(parents=True, exist_ok=True)
+                Image.new("L", (48, 48), color=color).save(image_dir / f"{class_name}_2.png")
+
+        dataset = build_dataset(Path(self.temp_dir.name), split="train")
+        self.assertEqual(len(dataset), 4)
+
+        val_dataset = build_dataset(Path(self.temp_dir.name), split="val")
+        self.assertEqual(len(val_dataset), 2)
+
+    def test_nested_parent_directory_is_discovered(self) -> None:
+        nested_parent = Path(self.temp_dir.name) / "data" / "data"
+        nested_root = nested_parent / "archive_2"
+        for split in ("train", "val"):
+            for class_name, color in (("happy", 200), ("sad", 16)):
+                image_dir = nested_root / split / class_name
+                image_dir.mkdir(parents=True, exist_ok=True)
+                Image.new("L", (48, 48), color=color).save(image_dir / f"{class_name}_nested.png")
+
+        roots = find_image_folder_roots(nested_parent, split="train")
+        self.assertEqual(roots, [nested_root])
+
+        dataset = build_dataset(Path(self.temp_dir.name) / "data", split="train")
         self.assertEqual(len(dataset), 2)
+
+    def test_numeric_class_directories_are_supported(self) -> None:
+        numeric_root = Path(self.temp_dir.name) / "archive(1)" / "DATASET"
+        for split in ("train", "test"):
+            for class_name, color in (("1", 255), ("7", 64)):
+                image_dir = numeric_root / split / class_name
+                image_dir.mkdir(parents=True, exist_ok=True)
+                Image.new("L", (48, 48), color=color).save(image_dir / f"{split}_{class_name}.png")
+
+        dataset = build_dataset(Path(self.temp_dir.name) / "archive(1)", split="train")
+        loader = DataLoader(dataset, batch_size=2)
+        _images, labels = next(iter(loader))
+
+        self.assertCountEqual(labels.tolist(), [0, 6])

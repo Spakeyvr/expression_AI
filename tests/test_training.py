@@ -6,7 +6,7 @@ import torch
 from PIL import Image
 from torch.utils.data import DataLoader, TensorDataset
 
-from train.train import _train_transform, evaluate, train_one_epoch
+from train.train import _train_transform, evaluate, maybe_subset, train_one_epoch
 
 
 class TinyClassifier(torch.nn.Module):
@@ -45,3 +45,17 @@ class TrainingTests(unittest.TestCase):
         self.assertGreaterEqual(val_loss, 0.0)
         self.assertGreaterEqual(train_accuracy, 0.0)
         self.assertGreaterEqual(val_accuracy, 0.0)
+
+    def test_maybe_subset_is_deterministic_for_seed(self) -> None:
+        dataset = TensorDataset(
+            torch.arange(100).view(100, 1).float(),
+            torch.arange(100, dtype=torch.long),
+        )
+
+        subset_a = maybe_subset(dataset, subset=10, seed=123)
+        subset_b = maybe_subset(dataset, subset=10, seed=123)
+
+        labels_a = [subset_a[i][1].item() for i in range(len(subset_a))]
+        labels_b = [subset_b[i][1].item() for i in range(len(subset_b))]
+        self.assertEqual(labels_a, labels_b)
+        self.assertNotEqual(labels_a, list(range(10)))

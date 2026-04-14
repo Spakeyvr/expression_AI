@@ -53,6 +53,18 @@ def predict_tensor(
     image_tensor: torch.Tensor,
     loaded_checkpoint: LoadedCheckpoint,
 ) -> dict[str, Any]:
+    if image_tensor.ndim == 4 and image_tensor.size(0) != 1:
+        raise ValueError(
+            "predict_tensor expects one image. "
+            "For batches with B > 1, use predict_batch_tensor instead."
+        )
+    return predict_batch_tensor(image_tensor, loaded_checkpoint)[0]
+
+
+def predict_batch_tensor(
+    image_tensor: torch.Tensor,
+    loaded_checkpoint: LoadedCheckpoint,
+) -> list[dict[str, Any]]:
     if image_tensor.ndim == 3:
         batch = image_tensor.unsqueeze(0)
     elif image_tensor.ndim == 4:
@@ -64,21 +76,26 @@ def predict_tensor(
 
     with torch.no_grad():
         logits = loaded_checkpoint.model(batch)
-        probabilities = torch.softmax(logits, dim=1)[0].cpu()
+        all_probabilities = torch.softmax(logits, dim=1).cpu()
 
-    top_index = int(torch.argmax(probabilities).item())
-    probability_map = {
-        label: float(probabilities[index].item())
-        for index, label in enumerate(loaded_checkpoint.class_names)
-    }
+    results: list[dict[str, Any]] = []
+    for probabilities in all_probabilities:
+        top_index = int(torch.argmax(probabilities).item())
+        probability_map = {
+            label: float(probabilities[index].item())
+            for index, label in enumerate(loaded_checkpoint.class_names)
+        }
+        results.append(
+            {
+                "label": loaded_checkpoint.class_names[top_index],
+                "label_index": top_index,
+                "confidence": probability_map[loaded_checkpoint.class_names[top_index]],
+                "probabilities": probability_map,
+                "device": str(loaded_checkpoint.device),
+            }
+        )
 
-    return {
-        "label": loaded_checkpoint.class_names[top_index],
-        "label_index": top_index,
-        "confidence": probability_map[loaded_checkpoint.class_names[top_index]],
-        "probabilities": probability_map,
-        "device": str(loaded_checkpoint.device),
-    }
+    return results
 
 
 def predict_pil_image(image: Image.Image, loaded_checkpoint: LoadedCheckpoint) -> dict[str, Any]:

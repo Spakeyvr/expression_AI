@@ -7,7 +7,7 @@ from typing import Callable
 import numpy as np
 import torch
 from PIL import Image
-from torch.utils.data import Dataset
+from torch.utils.data import ConcatDataset, Dataset
 
 from common import EMOTION_LABELS, pil_to_model_tensor
 
@@ -22,9 +22,9 @@ USAGE_ALIASES = {
 }
 SPLIT_DIR_ALIASES = {
     "train": ("train", "training"),
-    "val": ("val", "validation", "valid", "test"),
-    "validation": ("validation", "val", "valid", "test"),
-    "test": ("test", "val", "validation", "valid"),
+    "val": ("val", "validation", "valid"),
+    "validation": ("validation", "val", "valid"),
+    "test": ("test",),
 }
 EMOTION_DIR_NAMES = {
     "angry": 0,
@@ -34,6 +34,14 @@ EMOTION_DIR_NAMES = {
     "sad": 4,
     "surprise": 5,
     "neutral": 6,
+    # Some FER-style folder exports use numeric labels instead of emotion names.
+    "1": 0,
+    "2": 1,
+    "3": 2,
+    "4": 3,
+    "5": 4,
+    "6": 5,
+    "7": 6,
 }
 
 
@@ -183,6 +191,45 @@ class EmotionImageFolderDataset(Dataset[tuple[torch.Tensor, int]]):
         return samples
 
 
+def _has_split_dir(root: Path, split: str) -> bool:
+    return any((root / directory_name).is_dir() for directory_name in SPLIT_DIR_ALIASES[split])
+
+
+def find_image_folder_roots(data_path: str | Path, split: str = "train") -> list[Path]:
+    path = Path(data_path)
+    canonical_split = FER2013Dataset._canonicalize_split(split)
+
+    if not path.is_dir():
+        return []
+
+    candidate_roots: list[Path] = []
+    seen: set[Path] = set()
+
+    # Allow the provided directory itself to be the dataset root.
+    if _has_split_dir(path, canonical_split):
+        candidate_roots.append(path)
+        seen.add(path.resolve())
+
+    # Also allow passing a parent directory such as data/ or data/data/ that contains
+    # one or more dataset roots like archive/ or archive_2/.
+    for candidate in sorted(directory for directory in path.rglob("*") if directory.is_dir()):
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        if _has_split_dir(candidate, canonical_split):
+            candidate_roots.append(candidate)
+            seen.add(resolved)
+
+    # Keep only the shallowest roots so nested matches do not get double-counted.
+    filtered_roots: list[Path] = []
+    for candidate in sorted(candidate_roots, key=lambda root: (len(root.parts), str(root))):
+        if any(parent == candidate or parent in candidate.parents for parent in filtered_roots):
+            continue
+        filtered_roots.append(candidate)
+
+    return filtered_roots
+
+
 def build_dataset(
     data_path: str | Path,
     split: str = "train",
@@ -190,5 +237,15 @@ def build_dataset(
 ) -> Dataset[tuple[torch.Tensor, int]]:
     path = Path(data_path)
     if path.is_dir():
-        return EmotionImageFolderDataset(path, split=split, transform=transform)
+        image_folder_roots = find_image_folder_roots(path, split=split)
+        if not image_folder_roots:
+            return EmotionImageFolderDataset(path, split=split, transform=transform)
+
+        datasets = [
+            EmotionImageFolderDataset(root, split=split, transform=transform)
+            for root in image_folder_roots
+        ]
+        if len(datasets) == 1:
+            return datasets[0]
+        return ConcatDataset(datasets)
     return FER2013Dataset(path, split=split, transform=transform)

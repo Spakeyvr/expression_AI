@@ -64,7 +64,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         "--subset",
         type=int,
         default=None,
-        help="Limit train/validation datasets to the first N samples for quick iteration.",
+        help="Limit train/validation datasets to N randomly sampled examples for quick iteration.",
+    )
+    parser.add_argument(
+        "--subset-seed",
+        type=int,
+        default=42,
+        help="Seed used when sampling random subset indices.",
     )
     parser.add_argument(
         "--smoke-run",
@@ -100,11 +106,16 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
 
 def maybe_subset(
-    dataset: Dataset[tuple[torch.Tensor, int]], subset: int | None
+    dataset: Dataset[tuple[torch.Tensor, int]],
+    subset: int | None,
+    seed: int = 42,
 ) -> Dataset[tuple[torch.Tensor, int]] | Subset:
     if subset is None or subset >= len(dataset):
         return dataset
-    return Subset(dataset, range(subset))
+    generator = torch.Generator()
+    generator.manual_seed(seed)
+    indices = torch.randperm(len(dataset), generator=generator)[:subset].tolist()
+    return Subset(dataset, indices)
 
 
 def evaluate(model: nn.Module, dataloader: DataLoader, device: torch.device) -> tuple[float, float]:
@@ -204,8 +215,15 @@ def main() -> int:
     train_dataset = maybe_subset(
         build_dataset(args.data, split="train", transform=_train_transform),
         args.subset,
+        seed=args.subset_seed,
     )
-    val_dataset = maybe_subset(build_dataset(args.data, split="val"), args.subset)
+    try:
+        val_dataset = build_dataset(args.data, split="val")
+    except FileNotFoundError:
+        print("Validation split not found; using test/ as validation automatically.")
+        val_dataset = build_dataset(args.data, split="test")
+
+    val_dataset = maybe_subset(val_dataset, args.subset, seed=args.subset_seed)
 
     train_loader = DataLoader(
         train_dataset,

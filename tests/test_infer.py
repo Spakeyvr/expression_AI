@@ -9,13 +9,14 @@ import torch
 from PIL import Image
 
 from common import EMOTION_LABELS
-from infer import LoadedCheckpoint, predict_pil_image, predict_tensor
+from infer import LoadedCheckpoint, predict_batch_tensor, predict_pil_image, predict_tensor
 
 
 class FakeModel(torch.nn.Module):
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
         logits = torch.zeros((batch.size(0), len(EMOTION_LABELS)), dtype=torch.float32)
-        logits[:, 3] = 5.0
+        for index in range(batch.size(0)):
+            logits[index, index % len(EMOTION_LABELS)] = 5.0
         return logits
 
 
@@ -33,14 +34,27 @@ class InferenceTests(unittest.TestCase):
         image_tensor = torch.zeros((3, 224, 224), dtype=torch.float32)
         result = predict_tensor(image_tensor, self.loaded_checkpoint)
 
-        self.assertEqual(result["label"], "Happy")
+        self.assertEqual(result["label"], "Angry")
         self.assertAlmostEqual(sum(result["probabilities"].values()), 1.0, places=5)
 
     def test_predict_pil_image_supports_static_images(self) -> None:
         image = Image.new("RGB", (96, 96), color=(120, 120, 120))
         result = predict_pil_image(image, self.loaded_checkpoint)
 
-        self.assertEqual(result["label"], "Happy")
+        self.assertEqual(result["label"], "Angry")
+
+    def test_predict_batch_tensor_supports_multiple_images(self) -> None:
+        image_tensor = torch.zeros((2, 3, 224, 224), dtype=torch.float32)
+        results = predict_batch_tensor(image_tensor, self.loaded_checkpoint)
+
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0]["label"], "Angry")
+        self.assertEqual(results[1]["label"], "Disgust")
+
+    def test_predict_tensor_rejects_multi_image_batches(self) -> None:
+        image_tensor = torch.zeros((2, 3, 224, 224), dtype=torch.float32)
+        with self.assertRaises(ValueError):
+            predict_tensor(image_tensor, self.loaded_checkpoint)
 
 
 @unittest.skipUnless(importlib.util.find_spec("torchvision"), "torchvision is not installed")

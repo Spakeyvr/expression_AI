@@ -62,7 +62,49 @@ expression_AI/
        └── surprise/
    ```
 
-   `val/` is also supported. If you only have `train/` and `test/`, the trainer uses `test/` as the validation split.
+   Alternate split image folders with numeric labels are also supported:
+
+   ```text
+   data/data/archive(1)/
+   ├── DATASET/
+   │   ├── train/
+   │   │   ├── 1/
+   │   │   ├── 2/
+   │   │   ├── 3/
+   │   │   ├── 4/
+   │   │   ├── 5/
+   │   │   ├── 6/
+   │   │   └── 7/
+   │   └── test/
+   │       ├── 1/
+   │       ├── 2/
+   │       ├── 3/
+   │       ├── 4/
+   │       ├── 5/
+   │       ├── 6/
+   │       └── 7/
+   ├── train_labels.csv
+   └── test_labels.csv
+   ```
+
+   Numeric class folders map to the project's emotion order:
+   `1=Angry`, `2=Disgust`, `3=Fear`, `4=Happy`, `5=Sad`, `6=Surprise`, `7=Neutral`
+
+   `val/` is also supported. If you only have `train/` and `test/`, the trainer will automatically use `test/` as the validation split.
+
+   You can also point training at a parent directory that contains multiple archives, including nested layouts like:
+
+   ```text
+   data/data/
+   ├── archive/
+   │   ├── train/
+   │   └── val/
+   └── archive_2/
+       ├── train/
+       └── val/
+   ```
+
+   When you pass that parent folder to `--data`, Expression AI will discover each archive that contains the requested split and combine them into one dataset.
 
 3. Train the model:
 
@@ -74,6 +116,18 @@ expression_AI/
 
    ```bash
    python train/train.py --data data/archive --epochs 5
+   ```
+
+   or train from a parent directory that contains multiple archives:
+
+   ```bash
+   python train/train.py --data data/data --epochs 5
+   ```
+
+   or train directly from the numeric-label dataset above:
+
+   ```bash
+   python train/train.py --data 'data/data/archive(1)' --epochs 5
    ```
 
 4. Run inference on a single image:
@@ -92,6 +146,7 @@ expression_AI/
 
 - `--device auto` prefers Apple GPU acceleration through MPS when it is available at runtime and otherwise falls back to CPU.
 - `--smoke-run` performs a tiny 1-epoch training pass for local verification.
+- `--subset` now samples examples randomly (with `--subset-seed`) to avoid class-order bias during quick runs.
 - The model uses torchvision's current EfficientNet-B0 weights API, so the `--pretrained` path follows the same ImageNet weights behavior as the library docs.
 - The webcam app uses a multi-angle OpenCV cascade pass (frontal, mirrored profile, and slight tilt recovery) before running emotion inference.
 - Training now applies horizontal-flip and rotation augmentation so the classifier is less brittle on off-axis face crops.

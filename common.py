@@ -64,8 +64,28 @@ def resolve_device(device: str = "auto") -> torch.device:
 
 
 def pil_to_model_tensor(image: Image.Image, size: int = DEFAULT_IMAGE_SIZE) -> torch.Tensor:
-    resized = image.convert("RGB").resize((size, size), RESAMPLING_BILINEAR)
-    array = np.asarray(resized, dtype=np.float32) / 255.0
+    rgb_image = image.convert("RGB")
+
+    # Match common ImageNet preprocessing: resize short side, then center crop.
+    resize_short_side = int(round(size / 0.875))
+    width, height = rgb_image.size
+    if width <= 0 or height <= 0:
+        raise ValueError("Input image has an invalid size.")
+
+    if width < height:
+        resized_width = resize_short_side
+        resized_height = int(round((resize_short_side / width) * height))
+    else:
+        resized_height = resize_short_side
+        resized_width = int(round((resize_short_side / height) * width))
+
+    resized = rgb_image.resize((resized_width, resized_height), RESAMPLING_BILINEAR)
+
+    left = max((resized_width - size) // 2, 0)
+    top = max((resized_height - size) // 2, 0)
+    cropped = resized.crop((left, top, left + size, top + size))
+
+    array = np.asarray(cropped, dtype=np.float32) / 255.0
     tensor = torch.from_numpy(array).permute(2, 0, 1)
 
     mean = torch.tensor(IMAGENET_MEAN, dtype=torch.float32).view(3, 1, 1)
