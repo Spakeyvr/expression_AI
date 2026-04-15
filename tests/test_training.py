@@ -2,11 +2,16 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, TensorDataset
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import train.train as train_module
 from train.train import (
@@ -103,3 +108,7 @@ class TrainingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             explicit_path = Path(temp_dir) / "custom_dataset"
             self.assertEqual(resolve_data_path(str(explicit_path)), explicit_path)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import unittest
+import sys
 from unittest import mock
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from common import DeviceResolutionError, resolve_device
 

@@ -3,10 +3,15 @@ from __future__ import annotations
 import csv
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 
 from PIL import Image
 from torch.utils.data import DataLoader
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from data.dataset import EmotionImageFolderDataset, FER2013Dataset, build_dataset, find_image_folder_roots
 
@@ -118,3 +123,7 @@ class EmotionImageFolderDatasetTests(unittest.TestCase):
         _images, labels = next(iter(loader))
 
         self.assertCountEqual(labels.tolist(), [0, 6])
+
+
+if __name__ == "__main__":
+    unittest.main()

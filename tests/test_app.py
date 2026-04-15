@@ -2,10 +2,15 @@ from __future__ import annotations
 
 import os
 import unittest
+import sys
 from pathlib import Path
 from unittest import mock
 
 import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from display.app import ExpressionAIApp
 from display.app import FRAME_SIZE
@@ -74,3 +79,7 @@ class AppTests(unittest.TestCase):
 
         self.assertIn("No face detected", app.status_label.cget("text"))
         app.shutdown()
+
+
+if __name__ == "__main__":
+    unittest.main()

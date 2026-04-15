@@ -3,10 +3,15 @@ from __future__ import annotations
 import importlib.util
 import tempfile
 import unittest
+import sys
 from pathlib import Path
 
 import torch
 from PIL import Image
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from common import EMOTION_LABELS
 from infer import LoadedCheckpoint, predict_batch_tensor, predict_pil_image, predict_tensor
@@ -72,3 +77,7 @@ class CheckpointErrorTests(unittest.TestCase):
             checkpoint_path = Path(temp_dir) / "missing.pt"
             with self.assertRaises(FileNotFoundError):
                 predict_image("missing-image.jpg", checkpoint_path)
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -4,10 +4,15 @@ import io
 import os
 import tempfile
 import unittest
+import sys
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from PIL import Image
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import process_data
 from data.dataset import build_dataset
