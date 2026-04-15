@@ -42,5 +42,5 @@ runs/
 data/
 processed_data/
 
-# local Codex worktree metadata
-.claude/worktrees/
+# local agent stuff
+.claude/
