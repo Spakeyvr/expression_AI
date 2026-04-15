@@ -41,3 +41,6 @@ runs/
 # data
 data/
 processed_data/
+
+# local Codex worktree metadata
+.claude/worktrees/
