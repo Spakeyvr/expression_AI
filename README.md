@@ -1,29 +1,6 @@
 # Expression AI
 
-Expression AI is a local-first Python MVP for facial emotion recognition using either the FER2013 CSV dataset or split image folders, an EfficientNet-B0 classifier, single-image inference, and a Tkinter webcam demo.
-
-## Project Layout
-
-```text
-expression_AI/
-├── data/
-│   ├── raw_data/
-│   ├── processed_data/
-│   └── dataset.py
-├── model/
-│   ├── checkpoints/
-│   └── model.py
-├── train/
-│   └── train.py
-├── display/
-│   ├── app.py
-│   └── images/
-├── process_data.py
-├── infer.py
-├── common.py
-├── requirements.txt
-└── tests/
-```
+Expression AI is a local-first Python MVP for facial emotion recognition needing large datasets, and using an EfficientNet-B0 classifier, single-image inference, and a Tkinter webcam demo.
 
 ## Setup
 
@@ -120,28 +97,10 @@ expression_AI/
 3. Train the model:
 
    ```bash
-   python train/train.py --epochs 5
+   python train/train.py
    ```
 
    By default, the trainer auto-detects a dataset from `data/processed_data` first and then `data/raw_data`.
-
-   To train from an explicit FER2013 CSV instead:
-
-   ```bash
-   python train/train.py --data data/raw_data/fer2013.csv --epochs 5
-   ```
-
-   To train from a specific split-folder dataset:
-
-   ```bash
-   python train/train.py --data data/raw_data/archive --epochs 5
-   ```
-
-   Or train from a parent directory that contains multiple archives:
-
-   ```bash
-   python train/train.py --data data/raw_data --epochs 5
-   ```
 
 4. Run inference on a single image:
 
