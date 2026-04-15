@@ -1,12 +1,21 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
+from pathlib import Path
 
 import torch
 from PIL import Image
 from torch.utils.data import DataLoader, TensorDataset
 
-from train.train import _train_transform, evaluate, maybe_subset, train_one_epoch
+import train.train as train_module
+from train.train import (
+    _train_transform,
+    evaluate,
+    maybe_subset,
+    resolve_data_path,
+    train_one_epoch,
+)
 
 
 class TinyClassifier(torch.nn.Module):
@@ -59,3 +68,38 @@ class TrainingTests(unittest.TestCase):
         labels_b = [subset_b[i][1].item() for i in range(len(subset_b))]
         self.assertEqual(labels_a, labels_b)
         self.assertNotEqual(labels_a, list(range(10)))
+
+    def test_resolve_data_path_prefers_raw_data(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            raw_root = root / "raw_data"
+            processed_root = root / "processed_data"
+            (raw_root / "train" / "happy").mkdir(parents=True)
+            (processed_root / "train" / "sad").mkdir(parents=True)
+
+            original_dirs = train_module.AUTO_DATA_DIRS
+            try:
+                train_module.AUTO_DATA_DIRS = (raw_root, processed_root)
+                self.assertEqual(resolve_data_path(None), raw_root)
+            finally:
+                train_module.AUTO_DATA_DIRS = original_dirs
+
+    def test_resolve_data_path_falls_back_to_processed_data(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            raw_root = root / "raw_data"
+            processed_root = root / "processed_data"
+            raw_root.mkdir(parents=True)
+            (processed_root / "train" / "sad").mkdir(parents=True)
+
+            original_dirs = train_module.AUTO_DATA_DIRS
+            try:
+                train_module.AUTO_DATA_DIRS = (raw_root, processed_root)
+                self.assertEqual(resolve_data_path(None), processed_root)
+            finally:
+                train_module.AUTO_DATA_DIRS = original_dirs
+
+    def test_resolve_data_path_expands_explicit_argument(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            explicit_path = Path(temp_dir) / "custom_dataset"
+            self.assertEqual(resolve_data_path(str(explicit_path)), explicit_path)

@@ -7,6 +7,8 @@ Expression AI is a local-first Python MVP for facial emotion recognition using e
 ```text
 expression_AI/
 ├── data/
+│   ├── raw_data/
+│   ├── processed_data/
 │   └── dataset.py
 ├── model/
 │   ├── checkpoints/
@@ -37,13 +39,13 @@ expression_AI/
    `FER2013` CSV:
 
    ```text
-   data/fer2013.csv
+   data/raw_data/fer2013.csv
    ```
 
    Split image folders:
 
    ```text
-   data/archive/
+   data/raw_data/archive/
    ├── train/
    │   ├── angry/
    │   ├── disgust/
@@ -65,7 +67,7 @@ expression_AI/
    Alternate split image folders with numeric labels are also supported:
 
    ```text
-   data/data/archive(1)/
+   data/raw_data/archive(1)/
    ├── DATASET/
    │   ├── train/
    │   │   ├── 1/
@@ -95,7 +97,7 @@ expression_AI/
    You can also point training at a parent directory that contains multiple archives, including nested layouts like:
 
    ```text
-   data/data/
+   data/raw_data/
    ├── archive/
    │   ├── train/
    │   └── val/
@@ -109,25 +111,27 @@ expression_AI/
 3. Train the model:
 
    ```bash
-   python train/train.py --data data/fer2013.csv --epochs 5
+   python train/train.py --epochs 5
    ```
 
-   or
+   By default, the trainer auto-detects a dataset from `data/raw_data` first and then `data/processed_data`.
+
+   To train from an explicit FER2013 CSV instead:
 
    ```bash
-   python train/train.py --data data/archive --epochs 5
+   python train/train.py --data data/raw_data/fer2013.csv --epochs 5
    ```
 
-   or train from a parent directory that contains multiple archives:
+   To train from a specific split-folder dataset:
 
    ```bash
-   python train/train.py --data data/data --epochs 5
+   python train/train.py --data data/raw_data/archive --epochs 5
    ```
 
-   or train directly from the numeric-label dataset above:
+   Or train from a parent directory that contains multiple archives:
 
    ```bash
-   python train/train.py --data 'data/data/archive(1)' --epochs 5
+   python train/train.py --data data/raw_data --epochs 5
    ```
 
 4. Run inference on a single image:

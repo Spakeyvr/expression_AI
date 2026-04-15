@@ -20,7 +20,7 @@ from common import (
     pil_to_model_tensor,
     resolve_device,
 )
-from data.dataset import build_dataset
+from data.dataset import build_dataset, find_image_folder_roots
 from model.model import build_model, ensure_torchvision_available
 
 TRAIN_AUGMENTATION = T.Compose(
@@ -33,18 +33,43 @@ TRAIN_AUGMENTATION = T.Compose(
         ),
     ]
 )
+DEFAULT_DATA_DIR = ROOT / "data" / "processed_data"
+FALLBACK_DATA_DIR = ROOT / "data" / "raw_data"
+AUTO_DATA_DIRS = (DEFAULT_DATA_DIR, FALLBACK_DATA_DIR)
 
 
 def _train_transform(image):
     return pil_to_model_tensor(TRAIN_AUGMENTATION(image))
 
 
+def _has_trainable_data(path: Path) -> bool:
+    if not path.exists():
+        return False
+    if path.is_file():
+        return path.suffix.lower() == ".csv"
+    if find_image_folder_roots(path, split="train"):
+        return True
+    return any(csv_path.is_file() for csv_path in path.glob("*.csv"))
+
+
+def resolve_data_path(data_argument: str | None) -> Path:
+    if data_argument:
+        return Path(data_argument).expanduser()
+    for candidate in AUTO_DATA_DIRS:
+        if _has_trainable_data(candidate):
+            return candidate
+    return DEFAULT_DATA_DIR
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Train the Expression AI emotion classifier.")
     parser.add_argument(
         "--data",
-        required=True,
-        help="Path to a FER2013 CSV file or a dataset directory with split/class/image folders.",
+        default=None,
+        help=(
+            "Path to a FER2013 CSV file or a dataset directory with split/class/image folders. "
+            "Defaults to auto-detecting data/raw_data, then data/processed_data."
+        ),
     )
     parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs.")
     parser.add_argument("--batch-size", type=int, default=64, help="Batch size for training.")
@@ -212,16 +237,33 @@ def main() -> int:
         print(error, file=sys.stderr)
         return 2
 
-    train_dataset = maybe_subset(
-        build_dataset(args.data, split="train", transform=_train_transform),
-        args.subset,
-        seed=args.subset_seed,
-    )
+    data_path = resolve_data_path(args.data)
+
     try:
-        val_dataset = build_dataset(args.data, split="val")
+        train_dataset = maybe_subset(
+            build_dataset(data_path, split="train", transform=_train_transform),
+            args.subset,
+            seed=args.subset_seed,
+        )
+    except (FileNotFoundError, ValueError) as error:
+        if args.data is None:
+            print(
+                "Error: Could not load the default training dataset from "
+                f"{data_path}. Put a FER2013 CSV or split dataset under "
+                "data/raw_data or data/processed_data, or pass --data explicitly.",
+                file=sys.stderr,
+            )
+            print(f"Details: {error}", file=sys.stderr)
+            return 1
+
+        print(f"Error: {error}", file=sys.stderr)
+        return 1
+
+    try:
+        val_dataset = build_dataset(data_path, split="val")
     except FileNotFoundError:
         print("Validation split not found; using test/ as validation automatically.")
-        val_dataset = build_dataset(args.data, split="test")
+        val_dataset = build_dataset(data_path, split="test")
 
     val_dataset = maybe_subset(val_dataset, args.subset, seed=args.subset_seed)
 
@@ -249,7 +291,7 @@ def main() -> int:
     checkpoint_path = Path(args.checkpoint_dir) / "best.pt"
     best_val_accuracy = -1.0
 
-    print(f"Training on {device} with {len(train_loader.dataset)} train samples.")
+    print(f"Training on {device} with {len(train_loader.dataset)} train samples from {data_path}.")
     for epoch in range(1, args.epochs + 1):
         train_loss, train_accuracy = train_one_epoch(model, train_loader, optimizer, device)
         val_loss, val_accuracy = evaluate(model, val_loader, device)
