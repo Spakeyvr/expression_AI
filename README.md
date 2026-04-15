@@ -122,3 +122,7 @@ Expression AI is a local-first Python MVP for facial emotion recognition needing
 - The model uses torchvision's current EfficientNet-B0 weights API, so the `--pretrained` path follows the same ImageNet weights behavior as the library docs.
 - The webcam app uses a multi-angle OpenCV cascade pass (frontal, mirrored profile, and slight tilt recovery) before running emotion inference.
 - Training now applies horizontal-flip and rotation augmentation so the classifier is less brittle on off-axis face crops.
+
+## License notes
+This project is licensed under MIT — feel free to use, modify, and ship it anywhere.
+If you're building an app with it that gets decent traction (>100k downloads or so), I'd love a quick heads-up so I know where it's being used. No strings attached, I'll probably say yes for free anyway.
