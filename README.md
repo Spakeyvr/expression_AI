@@ -18,6 +18,7 @@ expression_AI/
 ├── display/
 │   ├── app.py
 │   └── images/
+├── process_data.py
 ├── infer.py
 ├── common.py
 ├── requirements.txt
@@ -108,13 +109,21 @@ expression_AI/
 
    When you pass that parent folder to `--data`, Expression AI will discover each archive that contains the requested split and combine them into one dataset.
 
+   If you have a raw image dataset that still needs to be normalized into split/emotion folders, run:
+
+   ```bash
+   python process_data.py path/to/raw_dataset
+   ```
+
+   This writes a normalized dataset to `data/processed_data` by default.
+
 3. Train the model:
 
    ```bash
    python train/train.py --epochs 5
    ```
 
-   By default, the trainer auto-detects a dataset from `data/raw_data` first and then `data/processed_data`.
+   By default, the trainer auto-detects a dataset from `data/processed_data` first and then `data/raw_data`.
 
    To train from an explicit FER2013 CSV instead:
 
